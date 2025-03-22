@@ -10,8 +10,14 @@ import {
   Box,
   Alert,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { validatePassword, validateEmail, validateName } from '../../utils/validation';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -21,8 +27,40 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    role: '',
   });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [passwordStrength, setPasswordStrength] = useState({ isValid: false, errors: [] });
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Validate names
+    if (!validateName(formData.firstName)) {
+      newErrors.firstName = 'Please enter a valid first name (letters only)';
+    }
+    if (!validateName(formData.lastName)) {
+      newErrors.lastName = 'Please enter a valid last name (letters only)';
+    }
+
+    // Validate email
+    if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Validate password match
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    // Validate role
+    if (!formData.role) {
+      newErrors.role = 'Please select a role';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -30,23 +68,43 @@ const Register = () => {
       ...prev,
       [name]: value,
     }));
+
+    // Check password strength when password field changes
+    if (name === 'password') {
+      setPasswordStrength(validatePassword(value));
+    }
+
+    // Clear error when field is modified
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!validateForm() || !passwordStrength.isValid) {
       return;
     }
 
     try {
       // TODO: Implement registration logic with backend API
       console.log('Registration data:', formData);
-      navigate('/login');
+      
+      // Simulate successful registration
+      navigate('/login', { 
+        state: { 
+          message: 'Registration successful! Please login with your credentials.' 
+        } 
+      });
     } catch (err) {
-      setError(err.message || 'Failed to register. Please try again.');
+      setErrors((prev) => ({
+        ...prev,
+        submit: err.message || 'Failed to register. Please try again.',
+      }));
     }
   };
 
@@ -76,9 +134,9 @@ const Register = () => {
           Sign Up
         </Typography>
 
-        {error && (
+        {errors.submit && (
           <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
-            {error}
+            {errors.submit}
           </Alert>
         )}
 
@@ -94,6 +152,8 @@ const Register = () => {
                 autoComplete="given-name"
                 value={formData.firstName}
                 onChange={handleChange}
+                error={!!errors.firstName}
+                helperText={errors.firstName}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -106,6 +166,8 @@ const Register = () => {
                 autoComplete="family-name"
                 value={formData.lastName}
                 onChange={handleChange}
+                error={!!errors.lastName}
+                helperText={errors.lastName}
               />
             </Grid>
             <Grid item xs={12}>
@@ -118,6 +180,8 @@ const Register = () => {
                 autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
+                error={!!errors.email}
+                helperText={errors.email}
               />
             </Grid>
             <Grid item xs={12}>
@@ -131,7 +195,13 @@ const Register = () => {
                 autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
+                error={formData.password.length > 0 && !passwordStrength.isValid}
               />
+              {formData.password.length > 0 && passwordStrength.errors.map((error, index) => (
+                <FormHelperText error key={index}>
+                  {error}
+                </FormHelperText>
+              ))}
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -143,7 +213,29 @@ const Register = () => {
                 id="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                error={!!errors.confirmPassword}
+                helperText={errors.confirmPassword}
               />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth error={!!errors.role}>
+                <InputLabel id="role-label">Role</InputLabel>
+                <Select
+                  labelId="role-label"
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  label="Role"
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="customer">Customer</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
+                </Select>
+                {errors.role && (
+                  <FormHelperText>{errors.role}</FormHelperText>
+                )}
+              </FormControl>
             </Grid>
           </Grid>
           <Button
