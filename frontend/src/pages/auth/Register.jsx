@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { validatePassword, validateEmail, validateName } from '../../utils/validation';
+import { authService } from '../../services/authService';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const Register = () => {
     role: '',
   });
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({ isValid: false, errors: [] });
 
   const validateForm = () => {
@@ -90,21 +92,50 @@ const Register = () => {
       return;
     }
 
+    setIsLoading(true);
+    setErrors({}); // Clear previous errors
+    
     try {
-      // TODO: Implement registration logic with backend API
-      console.log('Registration data:', formData);
-      
-      // Simulate successful registration
+      // Prepare user data for API
+      const userData = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+      };
+
+      console.log('Submitting registration data:', { ...userData, password: '****' });
+
+      // Register user through API
+      const response = await authService.register(userData);
+      console.log('Registration successful:', response);
+
+      // Redirect to login with success message
       navigate('/login', { 
         state: { 
-          message: 'Registration successful! Please login with your credentials.' 
-        } 
+          message: 'Registration successful! Please login with your credentials.',
+          email: formData.email // Pass email to pre-fill login form
+        },
+        replace: true // Use replace to prevent going back to registration
       });
     } catch (err) {
-      setErrors((prev) => ({
-        ...prev,
-        submit: err.message || 'Failed to register. Please try again.',
-      }));
+      console.error('Registration error:', err);
+      
+      // Handle specific error cases
+      if (err.message.includes('Unable to connect')) {
+        setErrors({
+          submit: 'Unable to connect to the server. Please make sure the backend server is running.'
+        });
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors from backend
+        setErrors(err.response.data.errors);
+      } else {
+        setErrors({
+          submit: err.message || 'Failed to register. Please try again.'
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -243,8 +274,9 @@ const Register = () => {
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
+            disabled={isLoading}
           >
-            Sign Up
+            {isLoading ? 'Registering...' : 'Sign Up'}
           </Button>
           <Box sx={{ textAlign: 'center' }}>
             <Link component={RouterLink} to="/login" variant="body2">
